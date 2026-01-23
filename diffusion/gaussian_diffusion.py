@@ -213,9 +213,10 @@ class GaussianDiffusion:
         assert self._loss_interp_granu is not None
         self._loss_history_update_stride = schedule_update_stride
         print('schedule update stride', self._loss_history_update_stride)
-        self._loss_history = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length)) * np.linspace(0, 0.5, self.num_timesteps//self._loss_interp_granu)[:,None]
-        self._loss_history_count = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length))
-
+        
+        # 尝试加载最新的损失历史
+        self._load_loss_history()
+        
         alphas = 1.0 - betas
 
         if len(betas.shape) < 2:
@@ -249,6 +250,46 @@ class GaussianDiffusion:
 
         self.training_mode = training_mode
         print("training mode is ", training_mode)
+    
+    def _load_loss_history(self):
+        """
+        加载最新的损失历史和计数
+        """
+        import os
+        import glob
+        
+        # 初始化默认值
+        self._loss_history = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length)) * np.linspace(0, 0.5, self.num_timesteps//self._loss_interp_granu)[:,None]
+        self._loss_history_count = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length))
+        
+        if self.save_dir is None or not os.path.exists(self.save_dir):
+            print("Save directory not found, using default loss history")
+            return
+        
+        # 查找最新的 loss_step 文件
+        loss_step_files = glob.glob(os.path.join(self.save_dir, "loss_step_*.npy"))
+        if not loss_step_files:
+            print("No loss_step files found, using default loss history")
+            return
+        
+        # 按步数排序，取最新的
+        loss_step_files.sort(key=lambda x: int(x.split("_")[-1].replace(".npy", "")))
+        latest_loss_step_file = loss_step_files[-1]
+        latest_step = int(latest_loss_step_file.split("_")[-1].replace(".npy", ""))
+        
+        # 对应的 loss_count 文件
+        latest_loss_count_file = os.path.join(self.save_dir, f"loss_count_{latest_step}.npy")
+        
+        try:
+            self._loss_history = np.load(latest_loss_step_file)
+            self._loss_history_count = np.load(latest_loss_count_file)
+            print(f"Loaded loss history from step {latest_step}")
+            print(f"  loss_history shape: {self._loss_history.shape}")
+            print(f"  loss_count shape: {self._loss_history_count.shape}")
+        except Exception as e:
+            print(f"Failed to load loss history: {e}, using default values")
+            self._loss_history = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length)) * np.linspace(0, 0.5, self.num_timesteps//self._loss_interp_granu)[:,None]
+            self._loss_history_count = np.ones((self.num_timesteps//self._loss_interp_granu, self.token_max_length))
     
     def update_time_discretized_parameters(self, alphas_cumprod):
 
@@ -562,20 +603,41 @@ class GaussianDiffusion:
         model_kwargs["self_conditions"] = model_output
           
 
-        model_variance, model_log_variance = {
-            # for fixedlarge, we set the initial (log-)variance like so
-            # to get a better decoder log likelihood.
-            ModelVarType.FIXED_LARGE: (
-                np.append(self.posterior_variance[1], self.betas[1:]),
-                np.log(np.append(self.posterior_variance[1], self.betas[1:])),
-            ),
-            ModelVarType.FIXED_SMALL: (
-                self.posterior_variance,
-                self.posterior_log_variance_clipped,
-            ),
-        }[self.model_var_type]
-        model_variance = _extract_into_tensor(model_variance, t, x.shape)
-        model_log_variance = _extract_into_tensor(model_log_variance, t, x.shape)
+        if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
+            B, C = x.shape[0], x.shape[-1]
+            expected_shape = list(x.shape)
+            expected_shape[-1] = C * 2
+            expected_shape = tuple(expected_shape)
+            assert model_output.shape == expected_shape, f"Expected shape {expected_shape}, got {model_output.shape}"
+            model_output, model_var_values = th.split(model_output, C, dim=-1)
+            if self.model_var_type == ModelVarType.LEARNED:
+                model_log_variance = model_var_values
+                model_variance = th.exp(model_log_variance)
+            else:
+                min_log = _extract_into_tensor(
+                    self.posterior_log_variance_clipped, t, x.shape
+                )
+                max_log = _extract_into_tensor(
+                    np.log(self.betas), t, x.shape
+                )
+                frac = (model_var_values + 1) / 2
+                model_log_variance = frac * max_log + (1 - frac) * min_log
+                model_variance = th.exp(model_log_variance)
+        else:
+            model_variance, model_log_variance = {
+                # for fixedlarge, we set the initial (log-)variance like so
+                # to get a better decoder log likelihood.
+                ModelVarType.FIXED_LARGE: (
+                    np.append(self.posterior_variance[1], self.betas[1:]),
+                    np.log(np.append(self.posterior_variance[1], self.betas[1:])),
+                ),
+                ModelVarType.FIXED_SMALL: (
+                    self.posterior_variance,
+                    self.posterior_log_variance_clipped,
+                ),
+            }[self.model_var_type]
+            model_variance = _extract_into_tensor(model_variance, t, x.shape)
+            model_log_variance = _extract_into_tensor(model_log_variance, t, x.shape)
 
         def process_xstart(x):
             if denoised_fn is not None:
@@ -736,7 +798,6 @@ class GaussianDiffusion:
                 model_kwargs["encoder_outputs"] = (model.forward_encoder(decoder_inputs_embeds = img, 
                                                                         timesteps = self._scale_timesteps(t), 
                                                                         **model_kwargs), )
-            model_kwargs.pop('input_ids')
             if 'self_conditions' in model_kwargs:
                 model_kwargs.pop('self_conditions')
 
@@ -806,7 +867,6 @@ class GaussianDiffusion:
                 model_kwargs["encoder_outputs"] = (model.forward_encoder(decoder_inputs_embeds = img, 
                                                                         timesteps = self._scale_timesteps(t), 
                                                                         **model_kwargs), )
-            model_kwargs.pop('input_ids')
             if 'self_conditions' in model_kwargs:
                 model_kwargs.pop('self_conditions')
         
@@ -874,7 +934,6 @@ class GaussianDiffusion:
                 model_kwargs["encoder_outputs"] = (model.forward_encoder(decoder_inputs_embeds = img, 
                                                                         timesteps = self._scale_timesteps(t), 
                                                                         **model_kwargs), )
-            model_kwargs.pop('input_ids')
             if 'self_conditions' in model_kwargs:
                 model_kwargs.pop('self_conditions')
         

@@ -20,6 +20,7 @@ class DataConfig:
     batch_size: int = 32
     max_seq_len: int = 64
     max_seq_len_src: int = 64
+    in_out_channel: int = 800
 
 
 @dataclass
@@ -30,6 +31,7 @@ class ModelConfig:
     dropout: float = 0.1
     diffusion_steps: int = 4000
     noise_schedule: str = "sqrt"
+    timestep_respacing: str = ""
     learn_sigma: bool = False
     sigma_small: bool = False
     class_cond: bool = False
@@ -48,13 +50,19 @@ class ModelConfig:
     init_pretrained: bool = False
     freeze_embeddings: bool = False
     use_pretrained_embeddings: bool = False
+    load_ckpt: Optional[str] = None
+    sequence_len: int = 64
+    resume_checkpoint: str = "./checkpoints/myexperiment"
+    pad_tok_id: int = 0
+    loss_update_granu: int = 1000
+    schedule_update_stride: int = 1000
 
 
 @dataclass
 class TrainingConfig:
     """Training configuration."""
     lr: float = 1e-4
-    ema_rate: str = "0.9999"
+    ema_rate: float = 0.9999
     log_interval: int = 100
     save_interval: int = 10000
     eval_interval: int = 5000
@@ -65,6 +73,8 @@ class TrainingConfig:
     use_fp16: bool = False
     fp16_scale_growth: float = 1e-3
     schedule_sampler: str = "uniform"
+    microbatch: int = 32
+    resume_checkpoint: str = None
 
 
 @dataclass

@@ -92,8 +92,8 @@ def create_model(
     config_name,
     logits_mode,
     load_ckpt,
-    encoder_layers = 12,
-    decoder_layers = 12,
+    encoder_layers = 6,
+    decoder_layers = 6,
     model_type = 'encoder_decoder',
 ):
     return TransformerNetModel_encoder_decoder(

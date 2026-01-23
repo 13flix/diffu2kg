@@ -7,7 +7,7 @@ import os
 import socket
 
 import blobfile as bf
-from mpi4py import MPI
+# from mpi4py import MPI
 import torch as th
 import torch.distributed as dist
 
@@ -49,7 +49,10 @@ def dev():
     Get the device to use for torch.distributed.
     """
     if th.cuda.is_available():
-        return th.device(f"cuda:{MPI.COMM_WORLD.Get_rank() % GPUS_PER_NODE}")
+        # try:
+        #     return th.device(f"cuda:{MPI.COMM_WORLD.Get_rank() % GPUS_PER_NODE}")
+        # except:
+        return th.device("cuda:0")
     return th.device("cpu")
 
 
@@ -57,13 +60,16 @@ def load_state_dict(path, **kwargs):
     """
     Load a PyTorch file without redundant fetches across MPI ranks.
     """
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        with bf.BlobFile(path, "rb") as f:
-            data = f.read()
-    else:
-        data = None
-    data = MPI.COMM_WORLD.bcast(data)
-    return th.load(io.BytesIO(data), **kwargs)
+    # if MPI.COMM_WORLD.Get_rank() == 0:
+    #     with bf.BlobFile(path, "rb") as f:
+    #         data = f.read()
+    # else:
+    #     data = None
+    # data = MPI.COMM_WORLD.bcast(data)
+    # return th.load(io.BytesIO(data), **kwargs)
+    
+    # 单机模式直接加载
+    return th.load(path, **kwargs)
 
 
 # def sync_params(params):

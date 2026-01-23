@@ -214,18 +214,10 @@ class TransformerNetModel_encoder_decoder(nn.Module):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-        assert encoder_outputs is None or input_ids is None
-        # emb = self.time_embed(timestep_embedding(timesteps, self.in_channels))
-        # seq_length = decoder_inputs_embeds.size(1)
-        # if len(emb.shape) < 3:
-        #     emb = emb.unsqueeze(1).expand(-1, seq_length, -1)
+
         if self_conditions is not None:
             decoder_inputs_embeds = th.concat((decoder_inputs_embeds, self_conditions), dim = -1)
 
-        # decoder_inputs_embeds = (
-        #     self.input_up_proj_dec(decoder_inputs_embeds)
-        #     + emb
-        # )
         decoder_inputs_embeds = self.input_up_proj_dec(decoder_inputs_embeds)
 
         emb_inputs = self.dropout(self.LayerNorm(decoder_inputs_embeds))
@@ -241,5 +233,14 @@ class TransformerNetModel_encoder_decoder(nn.Module):
         ).last_hidden_state
 
         h = self.output_down_proj(input_trans_hidden_states)
+        
+        if input_ids is not None:
+            head_entity_emb = input_ids[:, 0, :]
+            relation_emb = input_ids[:, 1, :]
+            
+            head_entity_emb = head_entity_emb.unsqueeze(1).repeat(1, h.size(1), 1)  # (batch_size, seq_len, emb_dim)
+            relation_emb = relation_emb.unsqueeze(1).repeat(1, h.size(1), 1)  # (batch_size, seq_len, emb_dim)
+            
+            h = h + head_entity_emb + relation_emb
 
         return h

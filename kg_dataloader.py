@@ -74,9 +74,9 @@ class KGDataset(Dataset):
                 for ridx, (orig_idx, parts, time) in enumerate(records):
                     history = records[max(0, ridx - self.query_len):ridx]
                     temp_data = []
+                    temp_data.extend([parts[0], parts[1], parts[-1]])
                     for _, h_parts, _ in reversed(history):
                         temp_data.extend(h_parts)
-                    temp_data.extend([parts[0], parts[1], parts[-1]])
                     self.data.append(temp_data)
         else:
             self.data = [row[:2] + row[3:] for row in Data]

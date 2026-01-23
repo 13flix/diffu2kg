@@ -127,6 +127,11 @@ class Trainer:
             # 单卡 / 没初始化分布式 → 直接用普通模型
             self.use_ddp = False
             self.ddp_model = self.model
+        
+        # 确保模型处于训练模式
+        self.model.train()
+        if self.use_ddp:
+            self.ddp_model.train()
 
     def _load_and_sync_parameters(self):
         resume_checkpoint = find_resume_checkpoint() or self.resume_checkpoint
@@ -373,6 +378,14 @@ class Trainer:
         save_checkpoint(0, self.master_params)
         for rate, params in zip(self.ema_rate, self.ema_params):
             save_checkpoint(rate, params)
+
+        # 保存优化器状态
+        if is_main_process():
+            opt_filename = f"opt{(self.step+self.resume_step):06d}.pt"
+            opt_path = bf.join(self.checkpoint_path, opt_filename)
+            logger.log(f"saving optimizer state to {opt_path}")
+            with bf.BlobFile(opt_path, "wb") as f:
+                torch.save(self.opt.state_dict(), f)
 
         safe_barrier()
 

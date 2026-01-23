@@ -1,0 +1,49 @@
+Logging to ./checkpoints/myexperiment\logger/
+creating data loader
+creating model and diffusion... ./checkpoints/myexperiment
+the parameter count is 63533944
+saving the hyperparameters to ./checkpoints/myexperiment/training_args.json
+training...
+------------------------
+| grad_norm | 0.616    |
+| loss      | 0.0936   |
+| loss_q0   | 0.0932   |
+| loss_q1   | 0.0934   |
+| loss_q2   | 0.0933   |
+| loss_q3   | 0.0955   |
+| mse       | 0.0936   |
+| mse_q0    | 0.0932   |
+| mse_q1    | 0.0934   |
+| mse_q2    | 0.0933   |
+| mse_q3    | 0.0955   |
+| samples   | 32       |
+| step      | 0        |
+------------------------
+saving model 0...
+saving model 0.9999...
+saving optimizer state to ./checkpoints/myexperiment\opt000000.pt
+---------------------------
+| eval_loss    | 0.0938   |
+| eval_loss_q0 | 0.096    |
+| eval_loss_q1 | 0.0936   |
+| eval_loss_q2 | 0.0932   |
+| eval_loss_q3 | 0.0926   |
+| eval_mse     | 0.0938   |
+| eval_mse_q0  | 0.096    |
+| eval_mse_q1  | 0.0936   |
+| eval_mse_q2  | 0.0932   |
+| eval_mse_q3  | 0.0926   |
+| grad_norm    | 0.629    |
+| loss         | 0.0907   |
+| loss_q0      | 0.0887   |
+| loss_q1      | 0.0907   |
+| loss_q2      | 0.0908   |
+| loss_q3      | 0.092    |
+| mse          | 0.0907   |
+| mse_q0       | 0.0887   |
+| mse_q1       | 0.0907   |
+| mse_q2       | 0.0908   |
+| mse_q3       | 0.092    |
+| samples      | 64       |
+| step         | 1        |
+---------------------------
