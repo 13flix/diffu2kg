@@ -29,10 +29,12 @@ diffu2kg/
 ## 安装依赖
 
 ```bash
-pip install torch transformers numpy
+pip install -r requirements
 ```
 
 ## 使用方法
+
+在训练模型前需要在项目目录下创建checkpoints目录，然后再checkpoints目录中创建myexperiment目录。模型训练过程中的参数文件等会被保存在这里
 
 ### 训练模型
 
@@ -63,17 +65,3 @@ python inference_main.py
 - Hit@3: 预测结果中排名前3的准确率
 - Hit@10: 预测结果中排名前10的准确率
 - MRR: 平均倒数排名
-
-## 优化说明
-
-本项目已完成代码结构优化：
-
-1. 删除了重复的目录结构（modeling/）
-2. 创建了统一的配置管理模块（config.py）
-3. 提取了评估逻辑为独立模块（evaluation.py）
-4. 重构了主要脚本以使用统一配置
-5. 清理了未使用的文件
-
-## 许可证
-
-MIT License
